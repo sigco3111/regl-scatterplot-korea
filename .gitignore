@@ -24,6 +24,7 @@ tests/__screenshots__/
 
 # Local tooling and editor metadata
 .vercel/
+.env*
 .DS_Store
 Thumbs.db
 .vscode/
