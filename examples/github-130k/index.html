@@ -59,13 +59,16 @@
       document.getElementById('stats').textContent = `${repos.length.toLocaleString()}개`;
 
       const container = document.getElementById('plot');
+      const hexToRgba = (hex) => {
+        const v = parseInt(hex.slice(1), 16);
+        return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 255];
+      };
       const points = repos.map(r => {
         const colorHex = LANG_COLORS[r.lang] || COLOR_DEFAULT;
-        const colorInt = parseInt(colorHex.slice(1), 16);
         return {
           x: Math.log10(Math.max(r.x, 1)),
           y: Math.log10(Math.max(r.y, 1)),
-          color: [colorInt],
+          color: hexToRgba(colorHex),
           label: r.full_name,
         };
       });
@@ -76,12 +79,11 @@
         pointSize: 3,
         pointColorHover: [0xff, 0xff, 0xff],
         pointSizeSelected: 5,
-        opacityBy: 'value',
         targetFps: 30,
       });
 
       container.appendChild(scatter.get('canvas'));
-      scatter.set(points);
+      scatter.draw(points);
 
       window.addEventListener('resize', () => {
         scatter.set({ width: container.clientWidth, height: container.clientHeight });

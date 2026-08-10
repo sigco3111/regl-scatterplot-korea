@@ -212,40 +212,67 @@ const COLOR_DEFAULT = '#6e7681';
 
 async function initGitHub() {
   await cardReady('[data-demo-card="github"]');
+  const status = document.querySelector('#github-status');
+  if (status) status.textContent = '로딩 중…';
+
+  const langKeys = Object.keys(LANG_COLORS);
+  const langCount = langKeys.length;
+
+  let repos = [];
+  try {
+    const resp = await fetch('./github-130k/data/github-repos.json');
+    if (resp.ok) {
+      const payload = await resp.json();
+      repos = payload.repos || [];
+    }
+  } catch (_) {}
+
+  if (status) status.textContent = repos.length > 0
+    ? `${repos.length.toLocaleString()}개`
+    : '샘플 데이터';
+
   const sp = setupCanvas('#canvas-github', {
     pointSize: 3,
     pointColorHover: [0xff, 0xff, 0xff],
     pointSizeSelected: 4,
-    opacity: 0.8,
-    xScale: scaleLinear().domain([5, 6]).range([0, 1]),
-    yScale: scaleLinear().domain([3, 6]).range([0, 1]),
+    opacity: 0.85,
   });
-  const status = document.querySelector('#github-status');
-  try {
-    const resp = await fetch('./github-130k/data/github-repos.json');
-    const payload = await resp.json();
-    const repos = payload.repos || [];
-    if (status) status.textContent = `${repos.length.toLocaleString()}개`;
-    const pointsData = repos.map((r) => {
-      const colorHex = LANG_COLORS[r.lang] || COLOR_DEFAULT;
-      return {
-        x: Math.log10(Math.max(r.x, 1)),
-        y: Math.log10(Math.max(r.y, 1)),
-        label: r.full_name,
-      };
-    });
-    const langColors = repos.map((r) => parseInt((LANG_COLORS[r.lang] || COLOR_DEFAULT).slice(1), 16));
-    sp.set({ pointColor: langColors });
-    sp.draw(pointsData);
-    return sp;
-  } catch (e) {
-    if (status) status.textContent = '로드 실패';
-    console.error('[github] failed to load', e);
-    const fallback = new Array(2000);
-    for (let i = 0; i < 2000; i++) fallback[i] = [rng() * 6, rng() * 5];
-    sp.draw(fallback);
-    return sp;
+
+  let data;
+  if (repos.length > 0) {
+    const rawX = repos.map((r) => Math.log10(Math.max(r.x, 1)));
+    const rawY = repos.map((r) => Math.log10(Math.max(r.y, 1)));
+    const xMin = Math.min(...rawX);
+    const xMax = Math.max(...rawX);
+    const yMin = Math.min(...rawY);
+    const yMax = Math.max(...rawY);
+    const xPad = (xMax - xMin) * 0.05 || 0.1;
+    const yPad = (yMax - yMin) * 0.05 || 0.1;
+    data = repos.map((r, i) => [
+      ((rawX[i] - (xMin - xPad)) / (xMax + xPad - (xMin - xPad))) * 2 - 1,
+      ((rawY[i] - (yMin - yPad)) / (yMax + yPad - (yMin - yPad))) * 2 - 1,
+      langKeys.indexOf(r.lang) === -1 ? 0 : langKeys.indexOf(r.lang),
+    ]);
+  } else {
+    data = new Array(120);
+    for (let i = 0; i < 120; i++) {
+      const t = i / 120;
+      data[i] = [
+        Math.cos(t * Math.PI * 2) * (0.7 - t * 0.3) + (rng() - 0.5) * 0.15,
+        Math.sin(t * Math.PI * 2) * (0.7 - t * 0.3) + (rng() - 0.5) * 0.15,
+        i % langCount,
+      ];
+    }
   }
+
+  const colors = data.map((_, i) => {
+    const hex = LANG_COLORS[langKeys[i % langCount]] || COLOR_DEFAULT;
+    const v = parseInt(hex.slice(1), 16);
+    return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 255];
+  });
+  sp.set({ pointColor: colors });
+  sp.draw(data);
+  return sp;
 }
 
 async function main() {
