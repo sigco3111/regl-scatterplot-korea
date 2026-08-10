@@ -282,13 +282,14 @@ export function createMenu({
 
   const info = pane.addFolder({ title: '정보', expanded: false });
 
-  info.addBlade({
-    view: 'text',
-    label: '버전',
-    parse: (v) => String(v),
-    value: refScatterplot.get('version'),
-    disabled: true,
-  });
+  // Tweakpane 4 removed the built-in `view: 'text'` blade. Use a readonly
+  // monitor binding so menu initialization never throws synchronously,
+  // which would otherwise block the rest of the demo entry script.
+  info.addBinding(
+    { version: refScatterplot.get('version') },
+    'version',
+    { readonly: true, label: '버전' }
+  );
 
   const download = pane.addButton({ title: 'PNG로 다운로드' });
   download.on('click', () => {

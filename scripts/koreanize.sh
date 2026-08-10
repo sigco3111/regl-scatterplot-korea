@@ -79,7 +79,6 @@ if [ -n "$MENU_JS" ]; then
   ["Point Connections by Line Segments", "선분별 점 연결"],
   ["Background Image", "배경 이미지"],
   ["Performance Mode (20M Points)", "성능 모드 (2000만 점)"],
-  ["version", "버전"],
   ["Download as PNG", "PNG로 다운로드"],
   ["Source Code", "소스 코드 보기"],
   ["On Long Press", "길게 누르기"],
@@ -114,6 +113,21 @@ for old, new in replacements_sorted:
     n = content.count(old)
     if n:
         content = content.replace(old, new)
+        total += n
+
+# Label-scoped translations: only when the English word appears as the
+# value of a `label:` key in a backtick string. This avoids accidentally
+# rewriting JS identifiers / object property keys (e.g. "version" as a
+# property name should NOT be translated even when "version" as a label
+# should be).
+LABEL_SCOPED = [
+    ("version", "버전"),
+]
+for old, new in LABEL_SCOPED:
+    label_pattern = re.compile(rf"(label:\s*\`){re.escape(old)}(\`)")
+    n = len(label_pattern.findall(content))
+    if n:
+        content = label_pattern.sub(rf"\g<1>{new}\g<2>", content)
         total += n
 
 Path(menu_path).write_text(content)

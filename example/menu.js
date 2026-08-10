@@ -281,13 +281,14 @@ export function createMenu({
 
   const info = pane.addFolder({ title: 'Info', expanded: false });
 
-  info.addBlade({
-    view: 'text',
-    label: 'version',
-    parse: (v) => String(v),
-    value: refScatterplot.get('version'),
-    disabled: true,
-  });
+  // Tweakpane 4 removed the built-in `view: 'text'` blade. Use a readonly
+  // monitor binding so menu initialization never throws synchronously,
+  // which would otherwise block the rest of the demo entry script.
+  info.addBinding(
+    { version: refScatterplot.get('version') },
+    'version',
+    { readonly: true, label: 'version' }
+  );
 
   const download = pane.addButton({ title: 'Download as PNG' });
   download.on('click', () => {
