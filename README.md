@@ -12,7 +12,7 @@
 
 | 데모 | URL | 비고 |
 |---|---|---|
-| **메인 한국어 데모** | https://regl-scatterplot.vercel.app/ | 메뉴·사이드바·제목 한글화 |
+| **통합 쇼케이스** | https://regl-scatterplot.vercel.app/ | 6개 데모를 한 페이지에 그리드 배치 |
 | **축 예제** | https://regl-scatterplot.vercel.app/axes.html | D3 scale 동기화 |
 | **텍스트 라벨 예제** | https://regl-scatterplot.vercel.app/text-labels.html | 점 위에 라벨 표시 |
 | **점 연결 예제** | https://regl-scatterplot.vercel.app/connected-points.html | 점 사이 연결선 |
@@ -21,15 +21,23 @@
 
 ## 원본 대비 변경 사항
 
+- `public/showcase.html` + `example/showcase.js` + `vite.config.mjs`
+  - 6개 데모를 한 페이지에 보여주는 통합 쇼케이스 추가 (그리드 레이아웃, 모바일 단일 열, 데스크톱 2열)
+  - Vite 멀티 페이지에 `showcase` 청크를 추가하고, `/` 경로에서 자동으로 쇼케이스로 이동
+  - 각 데모는 격리된 iframe으로 실행되어 서로 간섭 없이 그대로 동작
 - `scripts/koreanize.sh`
   - Vite 빌드가 생성한 `docs/*.html`의 언어·제목·설명·폰트를 한국어화
   - 빌드된 `menu-*.js`의 설정, 라쏘, 예제, 정보 메뉴를 한국어화
+  - 배포 후 `docs/index.html`은 쇼케이스로 리다이렉트
+- `scripts/sync-github-130k.mjs`
+  - 개발 모드에서 `examples/github-130k/`를 `public/github-130k/`로 복사 (Vercel 빌드는 `docs/github-130k/`)
 - `example/menu-ko.js`
   - 원본 메뉴 소스를 바탕으로 만든 한국어 참고 구현
 - `examples/github-130k/`
   - Stars, Forks, 언어를 좌표와 색상으로 표시하는 한국어 인터랙티브 산점도
+  - importmap으로 `pub-sub-es`/`regl`을 CDN에서 해결하고, `scatter.getCanvas()`를 현재 API인 `scatter.get('canvas')`로 갱신
 - `scripts/collect-github.py`와 `data/github-repos.json`
-  - API 키 없이 공개 GitHub 저장소 데이터를 수집하고 이어받아 저장
+  - API 키 없이 공개 GitHub 데이터를 수집하고 이어받아 저장
 - `vercel.json`
   - 전체 라이브러리 빌드 → 한국어 후처리 → GitHub 데이터 데모 복사를 하나의 배포 명령으로 실행
 
@@ -38,12 +46,16 @@
 ```text
 regl-scatterplot-korea/
 ├── src/                         # 원본 라이브러리 소스
-├── example/                     # 원본 예제 소스 + menu-ko.js
+├── example/                     # 원본 예제 소스 + showcase.js + menu-ko.js
 ├── examples/github-130k/        # 추가한 GitHub 데이터 데모
+├── public/
+│   ├── index.html               # 단일 데모 템플릿 (`/`는 쇼케이스로 리다이렉트)
+│   └── showcase.html            # 통합 쇼케이스 템플릿
 ├── data/github-repos.json       # 수집된 공개 저장소 데이터
 ├── scripts/
 │   ├── collect-github.py        # 공개 데이터 수집기
-│   └── koreanize.sh             # 빌드 후 한국어화
+│   ├── koreanize.sh             # 빌드 후 한국어화
+│   └── sync-github-130k.mjs     # 개발 모드용 데모 동기화
 ├── tests/                       # 원본 테스트
 ├── README.upstream.md           # 원본 영문 README 보존본
 └── vercel.json                  # Vercel 통합 빌드 설정

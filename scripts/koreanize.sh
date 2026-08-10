@@ -20,6 +20,16 @@ for page in index axes text-labels connected-points dynamic-opacity annotations 
   fi
 done
 
+# 1-b) 쇼케이스 페이지는 자체 한국어 메타 사용 — 누락 시 한국어 메타만 보강
+if [ -f "docs/showcase.html" ]; then
+  sed -i.bak \
+    -e 's|<html lang="en">|<html lang="ko">|' \
+    -e 's|content="Scalable WebGL-based Scatterplot for millions of points build with Regl"|content="Regl 기반 WebGL 산점도 한국어 통합 쇼케이스"|' \
+    -e 's|<meta name="author" content="Fritz Lekschas" />|<meta name="author" content="Fritz Lekschas (원작), sigco3111 (한국어)" />|' \
+    docs/showcase.html
+  rm -f docs/showcase.html.bak
+fi
+
 # 2) 모든 HTML에 한글 폰트 패밀리 주입
 for page in $(ls docs/*.html 2>/dev/null); do
   if ! grep -q "Noto Sans KR" "$page"; then
@@ -32,6 +42,35 @@ done
 if [ -f "docs/index.html" ]; then
   sed -i.bak 's|<h1>Regl Scatterplot</h1>|<h1>Regl 산점도 — 한국어 데모</h1>|' docs/index.html
   rm -f docs/index.html.bak
+fi
+
+# 4) 배포된 정적 사이트에서 / 이 쇼케이스를 가리키도록 redirect로 덮어쓰기
+if [ -f "docs/showcase.html" ]; then
+  cat > docs/index.html <<'HTML'
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>Regl 산점도 — 한국어 통합 쇼케이스</title>
+    <meta name="description" content="Regl 기반 WebGL 산점도 한국어 데모 6종을 한 페이지에서 탐색하세요." />
+    <meta name="author" content="Fritz Lekschas (원작), sigco3111 (한국어)" />
+    <link rel="canonical" href="./showcase.html" />
+    <meta http-equiv="refresh" content="0; url=./showcase.html" />
+    <script>location.replace('./showcase.html');</script>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #050810; color: #e6edf3;
+        font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif; }
+      .wrap { display: flex; align-items: center; justify-content: center; height: 100%; }
+      a { color: #58a6ff; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p>통합 쇼케이스로 이동 중... <a href="./showcase.html">여기를 클릭</a>하세요.</p>
+    </div>
+  </body>
+</html>
+HTML
 fi
 
 # 4) menu-*.js 자동 한글화 (백틱 형식 + 큰따옴표 형식 모두)

@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import virtualHtmlTemplate from 'vite-plugin-virtual-html-template';
 
 const chunks = [
+  'showcase',
   'index',
   'axes',
   'text-labels',
@@ -18,10 +19,17 @@ const chunks = [
   'programmatic-lasso',
 ];
 
+const TEMPLATE_BY_CHUNK = {
+  showcase: 'public/showcase.html',
+};
+
 const pages = Object.fromEntries(
   chunks.map((chunk) => [
     chunk,
-    { template: 'public/index.html', entry: `example/${chunk}.js` },
+    {
+      template: TEMPLATE_BY_CHUNK[chunk] ?? 'public/index.html',
+      entry: `example/${chunk}.js`,
+    },
   ])
 );
 

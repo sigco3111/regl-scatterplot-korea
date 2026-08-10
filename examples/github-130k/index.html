@@ -32,6 +32,14 @@
   <div id="plot"></div>
   <div class="legend" id="legend"><h3>언어 Top 10</h3></div>
   <div class="tooltip" id="tooltip"></div>
+  <script type="importmap">
+    {
+      "imports": {
+        "pub-sub-es": "https://cdn.jsdelivr.net/npm/pub-sub-es@3.0.0/+esm",
+        "regl": "https://cdn.jsdelivr.net/npm/regl@2.1.1/+esm"
+      }
+    }
+  </script>
   <script type="module">
     import createScatterplot from './regl-scatterplot.esm.js';
 
@@ -72,7 +80,7 @@
         targetFps: 30,
       });
 
-      container.appendChild(scatter.getCanvas());
+      container.appendChild(scatter.get('canvas'));
       scatter.set(points);
 
       window.addEventListener('resize', () => {
