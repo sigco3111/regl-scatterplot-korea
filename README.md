@@ -8,16 +8,11 @@
 
 > WebGL 기반 고성능 산점도 라이브러리, 원본 예제와 테스트를 그대로 유지하면서 정적 데모 UI 한글화와 GitHub 저장소 데이터 예제를 추가했습니다. 업스트림으로 PR을 보내지 않고 독립 운영합니다.
 
-## 🌐 라이브 데모
+## � 라이브 데모
 
 | 데모 | URL | 비고 |
 |---|---|---|
-| **통합 쇼케이스** | https://regl-scatterplot.vercel.app/ | 6개 데모를 한 페이지에 그리드 배치, 썸네일이 각 standalone demo의 핵심 기능을 그대로 재현 |
-| **축 예제** | https://regl-scatterplot.vercel.app/axes.html | D3 scale 동기화 |
-| **텍스트 라벨 예제** | https://regl-scatterplot.vercel.app/text-labels.html | 점 위에 라벨 표시 |
-| **점 연결 예제** | https://regl-scatterplot.vercel.app/connected-points.html | 점 사이 연결선 |
-| **동적 투명도 예제** | https://regl-scatterplot.vercel.app/dynamic-opacity.html | 투명도 동적 조절 |
-| **GitHub 데이터 데모** | https://regl-scatterplot.vercel.app/github-130k/ | 공개 저장소 데이터 시각화 |
+| **통합 쇼케이스** | https://regl-scatterplot.vercel.app/ | 6개 데모(색상 인코딩, 축, 텍스트 라벨, 점 연결선, 동적 투명도, GitHub 데이터)를 한 페이지에 그리드 배치. 각 카드의 "전체 화면 →" 링크로 standalone 페이지를 열 수 있음 |
 
 ## 원본 대비 변경 사항
 
