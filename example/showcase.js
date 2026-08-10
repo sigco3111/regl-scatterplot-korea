@@ -220,7 +220,7 @@ async function initGitHub() {
 
   let repos = [];
   try {
-    const resp = await fetch('./github-130k/data/github-repos.json');
+    const resp = await fetch('./github-1000/data/github-repos.json');
     if (resp.ok) {
       const payload = await resp.json();
       repos = payload.repos || [];

@@ -30,7 +30,7 @@ const info = await page.evaluate(async () => {
     if (data[i] > 0) drawnPixels++;
   }
 
-  const resp = await fetch('./github-130k/data/github-repos.json');
+  const resp = await fetch('./github-1000/data/github-repos.json');
   const payload = await resp.json();
   const repos = payload.repos || [];
 

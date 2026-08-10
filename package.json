@@ -30,8 +30,8 @@
     "prepublishOnly": "npm run test; rm -rf dist/*; npm run build;",
     "prerelease": "rm -rf dist/*; npm run build; zip -r dist.zip dist",
     "pretest": "npm run lint",
-    "prestart": "node scripts/sync-github-130k.mjs && cp scripts/pre-commit .git/hooks/ && chmod +x .git/hooks/pre-commit && echo 'pre-commit hook copied'",
-    "sync:github": "node scripts/sync-github-130k.mjs",
+    "prestart": "node scripts/sync-github-1000.mjs && cp scripts/pre-commit .git/hooks/ && chmod +x .git/hooks/pre-commit && echo 'pre-commit hook copied'",
+    "sync:github": "node scripts/sync-github-1000.mjs",
     "start": "vite --port=3000",
     "test": "vitest run",
     "coverage": "vitest run --coverage"

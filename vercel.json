@@ -1,4 +1,8 @@
 {
-  "buildCommand": "npm run build && bash scripts/koreanize.sh && mkdir -p docs/github-130k/data && cp examples/github-130k/index.html examples/github-130k/regl-scatterplot.esm.js docs/github-130k/ && cp data/github-repos.json docs/github-130k/data/",
-  "outputDirectory": "docs"
+  "buildCommand": "npm run build && bash scripts/koreanize.sh && mkdir -p docs/github-1000/data && cp examples/github-1000/index.html examples/github-1000/regl-scatterplot.esm.js docs/github-1000/ && cp data/github-repos.json docs/github-1000/data/",
+  "outputDirectory": "docs",
+  "rewrites": [
+    { "source": "/github-130k", "destination": "/github-1000" },
+    { "source": "/github-130k/(.*)", "destination": "/github-1000/$1" }
+  ]
 }

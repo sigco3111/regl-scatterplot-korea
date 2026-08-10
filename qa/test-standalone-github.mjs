@@ -11,7 +11,7 @@ page.on('console', (m) => {
   }
 });
 
-await page.goto('http://127.0.0.1:4500/github-130k/index.html', { waitUntil: 'load' });
+await page.goto('http://127.0.0.1:4500/github-1000/index.html', { waitUntil: 'load' });
 await page.waitForTimeout(4000);
 
 const info = await page.evaluate(() => {
