@@ -12,13 +12,19 @@ pids
 logs
 results
 
-dist/*
+dist/
 dist.zip
+docs/
 
 npm-debug.log
-node_modules/*
+node_modules/
 
-docs
 stats.html
+tests/__screenshots__/
 
-tests/__screenshots__
+# Local tooling and editor metadata
+.vercel/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
