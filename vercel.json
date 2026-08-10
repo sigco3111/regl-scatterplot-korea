@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm run build && mkdir -p docs/github-130k/data && cp examples/github-130k/index.html examples/github-130k/regl-scatterplot.esm.js docs/github-130k/ && cp data/github-repos.json docs/github-130k/data/",
+  "outputDirectory": "docs"
+}
