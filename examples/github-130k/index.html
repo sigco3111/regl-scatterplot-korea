@@ -63,14 +63,24 @@
         const v = parseInt(hex.slice(1), 16);
         return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 255];
       };
-      const points = repos.map(r => {
-        const colorHex = LANG_COLORS[r.lang] || COLOR_DEFAULT;
-        return {
-          x: Math.log10(Math.max(r.x, 1)),
-          y: Math.log10(Math.max(r.y, 1)),
-          color: hexToRgba(colorHex),
-          label: r.full_name,
-        };
+      const langKeys = Object.keys(LANG_COLORS);
+      const langCount = langKeys.length;
+      const rawX = repos.map((r) => Math.log10(Math.max(r.x, 1)));
+      const rawY = repos.map((r) => Math.log10(Math.max(r.y, 1)));
+      const xMin = Math.min(...rawX);
+      const xMax = Math.max(...rawX);
+      const yMin = Math.min(...rawY);
+      const yMax = Math.max(...rawY);
+      const xPad = (xMax - xMin) * 0.05 || 0.1;
+      const yPad = (yMax - yMin) * 0.05 || 0.1;
+      const points = repos.map((r, i) => [
+        ((rawX[i] - (xMin - xPad)) / (xMax + xPad - (xMin - xPad))) * 2 - 1,
+        ((rawY[i] - (yMin - yPad)) / (yMax + yPad - (yMin - yPad))) * 2 - 1,
+        langKeys.indexOf(r.lang) === -1 ? 0 : langKeys.indexOf(r.lang),
+      ]);
+      const colors = repos.map((r) => {
+        const hex = LANG_COLORS[r.lang] || COLOR_DEFAULT;
+        return hexToRgba(hex);
       });
 
       const scatter = createScatterplot({
@@ -83,6 +93,7 @@
       });
 
       container.appendChild(scatter.get('canvas'));
+      scatter.set({ pointColor: colors, colorBy: 'category' });
       scatter.draw(points);
 
       window.addEventListener('resize', () => {
