@@ -1,0 +1,79 @@
+name: sync-github-data
+
+# Daily update of the GitHub Top-1000 dataset.
+# - cron at 17:00 UTC (≈ 02:00 KST) once per day
+# - workflow_dispatch for manual trigger
+on:
+  schedule:
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+
+# Cancel any in-progress run if a new one is triggered.
+concurrency:
+  group: sync-github-data
+  cancel-in-progress: false
+
+# We need to read GITHUB_TOKEN (auto-provided by Actions, 5000 req/hr) and
+# push back to main when data changed.
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync top 1000 GitHub repos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # GITHUB_TOKEN is automatically provided by Actions.
+      # No need to set it explicitly.
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Full history needed to detect diff for conditional commit
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Run collector
+        id: collect
+        run: |
+          python3 scripts/collect-github.py
+          echo "repos=$(python3 -c "import json; print(len(json.load(open('data/github-repos.json'))['repos']))")" >> "$GITHUB_OUTPUT"
+          echo "size=$(wc -c < data/github-repos.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet data/github-repos.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data change; skipping commit."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Data changed; will commit."
+          fi
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/github-repos.json
+          COUNT=$(python3 -c "import json; print(len(json.load(open('data/github-repos.json'))['repos']))")
+          SIZE=$(wc -c < data/github-repos.json | tr -d ' ')
+          git commit -m "chore(data): sync top-$COUNT GitHub repos ($SIZE bytes)" \
+            -m "Auto-updated by .github/workflows/sync-github-data.yml" \
+            -m "Updated_at: $(python3 -c "import json; print(json.load(open('data/github-repos.json'))['meta']['updated_at'])")"
+          git push
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Sync summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Repos fetched: ${{ steps.collect.outputs.repos }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- File size: ${{ steps.collect.outputs.size }} bytes" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Changed: ${{ steps.diff.outputs.changed }}" >> "$GITHUB_STEP_SUMMARY"

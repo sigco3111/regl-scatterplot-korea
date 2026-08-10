@@ -35,17 +35,23 @@
   - 빌드된 `menu-*.js`의 설정, 라쏘, 예제, 정보 메뉴를 한국어화 (35+ 문자열, 가장 긴 패턴 우선 정렬로 `Opacity`가 `Dynamic Opacity`를 갉아먹는 문제 방지)
   - `version`은 JS 속성 키에서는 건드리지 않고 `label:\`version\`` 정규식 컨텍스트에서만 `버전`으로 치환
   - `docs/index.html`을 redirect 페이지로 덮어쓰지 않음 — `index` 청크가 만든 standalone 색상 데모를 보존
-- `scripts/sync-github-130k.mjs`
-  - 개발 모드에서 `examples/github-130k/`를 `public/github-130k/`로 복사 (Vercel 빌드는 `docs/github-130k/`)
+- `scripts/sync-github-1000.mjs`
+  - 개발 모드에서 `examples/github-1000/`를 `public/github-1000/`로 복사 (Vercel 빌드는 `docs/github-1000/`)
 - `example/menu-ko.js`
   - 원본 메뉴 소스를 바탕으로 만든 한국어 참고 구현
-- `examples/github-130k/`
+- `examples/github-1000/`
   - Stars, Forks, 언어를 좌표와 색상으로 표시하는 한국어 인터랙티브 산점도
   - importmap으로 `pub-sub-es`/`regl`을 CDN에서 해결하고, `scatter.getCanvas()`를 현재 API인 `scatter.get('canvas')`로 갱신
 - `scripts/collect-github.py`와 `data/github-repos.json`
-  - API 키 없이 공개 GitHub 데이터를 수집하고 이어받아 저장
+  - 공개 GitHub 데이터를 수집하고 이어받아 저장 (기본: `stars:>1000` 상위 1,000개)
+  - `GITHUB_TOKEN` env var이 있으면 Authorization 헤더 추가 (5000 req/hr)
+  - 403/429 응답 시 1s→2s→4s 지수 백오프로 3회 재시도
+- `.github/workflows/sync-github-data.yml`
+  - 매일 17:00 UTC (`0 17 * * *`) 자동으로 1,000개 데이터 갱신 + 변경 시 커밋/푸시
+  - `workflow_dispatch`로 수동 트리거 가능
 - `vercel.json`
   - 전체 라이브러리 빌드 → 한국어 후처리 → GitHub 데이터 데모 복사를 하나의 배포 명령으로 실행
+  - `rewrites` 규칙으로 구 URL `/github-130k` → 신규 `/github-1000` 308 리다이렉트 (하위 경로도 모두 매칭)
 
 ## 저장소 구조
 
@@ -53,7 +59,7 @@
 regl-scatterplot-korea/
 ├── src/                         # 원본 라이브러리 소스
 ├── example/                     # 원본 예제 소스 + showcase.js + menu-ko.js
-├── examples/github-130k/        # 추가한 GitHub 데이터 데모
+├── examples/github-1000/        # 추가한 GitHub 데이터 데모
 ├── public/
 │   ├── index.html               # 단일 데모 템플릿 (`/`는 쇼케이스로 리다이렉트)
 │   └── showcase.html            # 통합 쇼케이스 템플릿
@@ -61,7 +67,7 @@ regl-scatterplot-korea/
 ├── scripts/
 │   ├── collect-github.py        # 공개 데이터 수집기
 │   ├── koreanize.sh             # 빌드 후 한국어화
-│   └── sync-github-130k.mjs     # 개발 모드용 데모 동기화
+│   └── sync-github-1000.mjs     # 개발 모드용 데모 동기화
 ├── tests/                       # 원본 테스트
 ├── qa/                          # Playwright 회귀 인프라 + 증거 (evidence/는 .gitignore)
 ├── README.upstream.md           # 원본 영문 README 보존본
@@ -103,22 +109,45 @@ npm start
 ```bash
 npm run build \
   && bash scripts/koreanize.sh \
-  && mkdir -p docs/github-130k/data \
-  && cp examples/github-130k/index.html examples/github-130k/regl-scatterplot.esm.js docs/github-130k/ \
-  && cp data/github-repos.json docs/github-130k/data/
+  && mkdir -p docs/github-1000/data \
+  && cp examples/github-1000/index.html examples/github-1000/regl-scatterplot.esm.js docs/github-1000/ \
+  && cp data/github-repos.json docs/github-1000/data/
 ```
 
 `vercel.json`도 같은 순서를 사용합니다. `docs/`는 생성물이라 Git에서 추적하지 않습니다.
 
-## GitHub 데이터 갱신
+## GitHub 데이터
+
+- **수집 범위**: `stars:>1000` 상위 공개 저장소 **1,000개** (GitHub search API cap)
+- **소스**: `data/github-repos.json` (약 450KB, 1,000 repos × 11 필드)
+- **파일**: `examples/github-1000/index.html` + `scripts/collect-github.py`
+
+### 자동 동기화 (GitHub Actions)
+
+매일 자동으로 데이터를 갱신합니다. `.github/workflows/sync-github-data.yml`:
+
+- 트리거: `cron: '0 17 * * *'` (매일 17:00 UTC ≈ 02:00 KST) + 수동 `workflow_dispatch`
+- 인증: `GITHUB_TOKEN` (Actions 자동 제공, 5000 req/hr — 1,000개당 10회 소비)
+- 동작: `python3 scripts/collect-github.py` 실행 → `git diff`로 변경 감지 → 변경 시에만 commit + push
+- 권한: `contents: write` (푸시용)
+- 안전장치: 변경 없으면 커밋 안 만듦, 동시 실행은 `concurrency` 그룹으로 방지
+
+### 수동 실행 (로컬)
 
 ```bash
-python3 scripts/collect-github.py \
-  --max-pages=1 \
-  --query="stars:>1000"
+# 인증 토큰과 함께 실행 (권장)
+GITHUB_TOKEN=$(gh auth token) python3 scripts/collect-github.py
+
+# 토큰 없이도 동작하나 rate limit (10 req/hr)에 금방 걸림
+python3 scripts/collect-github.py --max-pages=2
 ```
 
-GitHub 검색 API의 비인증 한도는 시간당 10회입니다. 스크립트는 `data/github-repos.json`을 읽어 중복을 제거한 뒤 새 결과를 누적합니다.
+### 스크립트 옵션
+
+- `--max-pages=N` (기본 10 = 1,000 repos)
+- `--query="..."` (기본 `stars:>1000`)
+
+GitHub 검색 API의 검색당 상한이 1,000개라서 단일 쿼리로는 더 늘리기 어렵습니다. 403/429 (rate limit) 응답은 1s→2s→4s 지수 백오프로 최대 3회 재시도합니다.
 
 ## 인터랙션
 
@@ -127,6 +156,14 @@ GitHub 검색 API의 비인증 한도는 시간당 10회입니다. 스크립트�
 - **Shift + 드래그**: 라쏘 선택
 - **더블 클릭**: 선택 및 보기 초기화
 - **GitHub 데이터 데모 호버**: 저장소명, Stars, Forks, 언어, 설명 표시
+- **GitHub 데이터 데모 클릭**: 해당 GitHub 저장소 페이지를 새 탭에서 열기
+- **GitHub 데이터 데모 범례**: 언어 클릭으로 해당 언어만 강조 (나머지는 흐리게), 다시 클릭하면 해제
+- **GitHub 데이터 데모 축**: log10(Stars) / log10(Forks) 스케일의 tick 라벨 표시
+
+## GitHub 데이터 데모 URL
+
+- 운영: <https://regl-scatterplot.vercel.app/github-1000/>
+- 구 URL 호환: <https://regl-scatterplot.vercel.app/github-130k/> → 308 → 신규 URL (Vercel rewrite)
 
 ## 원격 구성
 
