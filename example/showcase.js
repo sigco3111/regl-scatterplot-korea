@@ -1,6 +1,7 @@
 import createScatterplot from '../src';
+import { axisBottom, axisRight } from 'd3-axis';
 import { scaleLinear } from 'd3-scale';
-import { checkSupport } from './utils';
+import { select } from 'd3-selection';
 
 const rng = (() => {
   let seed = 0x9e3779b9;
@@ -10,33 +11,9 @@ const rng = (() => {
   };
 })();
 
-const gaussianRandom = () => {
-  const u = Math.max(rng(), 1e-9);
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-};
-
-const points = (n, fill) => {
-  const out = { x: new Float32Array(n), y: new Float32Array(n) };
-  for (let i = 0; i < n; i++) {
-    const v = fill(i, n);
-    out.x[i] = v.x;
-    out.y[i] = v.y;
-  }
-  return out;
-};
-
-const pointsWithCategory = (n, fill, clusters) => {
-  const out = points(n, fill);
-  out.z = new Float32Array(n);
-  for (let i = 0; i < n; i++) out.z[i] = clusters[Math.floor(rng() * clusters.length)];
-  return out;
-};
-
-const pointsWithValue = (n, fill) => {
-  const out = points(n, fill);
-  out.w = new Float32Array(n);
-  for (let i = 0; i < n; i++) out.w[i] = rng();
+const makePoints = (n, fill) => {
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) out[i] = fill(i, n);
   return out;
 };
 
@@ -47,8 +24,11 @@ const COLORS_SCALE = [
   '#85aec0', '#90bbc6', '#9cc7cc', '#a9d4d2', '#b8e0d7', '#c8ecdc',
   '#ddf7df', '#ffffe0',
 ];
+const COLORS_AXES = [
+  '#d192b7', '#6fb2e4', '#eecb62', '#56bf92', '#dca237', '#3a84cc', '#c76526',
+];
 
-const setupCanvas = (id, options) => {
+const setupCanvas = (id, baseOptions) => {
   const canvas = document.querySelector(id);
   const rect = canvas.getBoundingClientRect();
   return createScatterplot({
@@ -56,76 +36,168 @@ const setupCanvas = (id, options) => {
     width: Math.max(320, Math.floor(rect.width)),
     height: Math.max(240, Math.floor(rect.height)),
     pointSize: 2,
-    opacity: 0.55,
-    showReticle: false,
+    showReticle: true,
     backgroundColor: '#000000',
-    ...options,
+    ...baseOptions,
   });
 };
 
-const cardCanvasesReady = async () => {
-  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-  const cards = Array.from(document.querySelectorAll('[data-demo-card]'));
-  await Promise.all(
-    cards.map(
-      (card) =>
-        new Promise((r) => {
-          if (card.getBoundingClientRect().width > 0) r();
-          else setTimeout(r, 50);
-        })
-    )
-  );
-};
+const cardReady = (selector) =>
+  new Promise((resolve) => {
+    const el = document.querySelector(selector);
+    if (el && el.getBoundingClientRect().width > 0) resolve();
+    else setTimeout(() => resolve(), 50);
+  });
 
 async function initColor() {
-  const sp = setupCanvas('#canvas-color');
-  checkSupport(sp);
-  const data = pointsWithCategory(80000, () => ({ x: -1 + rng() * 2, y: -1 + rng() * 2 }), [0, 1]);
-  sp.set({ colorBy: 'category', pointColor: COLORS_CAT });
+  await cardReady('[data-demo-card="color"]');
+  const sp = setupCanvas('#canvas-color', { opacity: 0.33, lassoType: 'brush' });
+  const numPoints = 100000;
+  const data = {
+    x: new Float32Array(numPoints),
+    y: new Float32Array(numPoints),
+    z: new Float32Array(numPoints),
+    w: new Float32Array(numPoints),
+  };
+  for (let i = 0; i < numPoints; i++) {
+    data.x[i] = -1 + rng() * 2;
+    data.y[i] = -1 + rng() * 2;
+    data.z[i] = Math.round(rng());
+    data.w[i] = rng();
+  }
+  sp.set({ colorBy: 'value', pointColor: COLORS_SCALE });
   sp.draw(data);
   return sp;
 }
 
 async function initAxes() {
-  const sp = setupCanvas('#canvas-axes');
-  const data = points(40000, () => ({ x: -1 + rng() * 2, y: -1 + rng() * 2 }));
-  sp.draw(data);
-  const xScale = scaleLinear().domain([-1, 1]).range([0, 1]);
-  const yScale = scaleLinear().domain([-1, 1]).range([0, 1]);
-  sp.set({ xScale, yScale });
-  return sp;
-}
+  await cardReady('[data-demo-card="axes"]');
+  const card = document.querySelector('[data-demo-card="axes"]');
+  const canvas = card.querySelector('canvas');
+  const sp = setupCanvas('#canvas-axes', {
+    opacity: 0.5,
+    xScale: scaleLinear().domain([0, 42]).range([0, 1]),
+    yScale: scaleLinear().domain([0, 4.2]).range([0, 1]),
+  });
 
-async function initLabels() {
-  const sp = setupCanvas('#canvas-labels');
-  const data = points(120, (i) => ({ x: -1 + rng() * 2, y: -1 + rng() * 2 }));
-  data.label = Array.from({ length: 120 }, (_, i) => `점 ${i + 1}`);
-  sp.draw(data);
-  sp.set({ showLabelsOnHover: true });
-  return sp;
-}
+  const frameEl = canvas.parentElement;
+  const frameRect = frameEl.getBoundingClientRect();
+  const overlay = select(frameEl).append('svg');
+  overlay
+    .attr('class', 'demo-axes-overlay')
+    .style('position', 'absolute')
+    .style('top', 0)
+    .style('left', 0)
+    .style('width', '100%')
+    .style('height', '100%')
+    .style('pointer-events', 'none');
 
-async function initConnections() {
-  const sp = setupCanvas('#canvas-connect');
-  const N = 12000;
-  const data = points(N, () => ({ x: -1 + rng() * 2, y: -1 + rng() * 2 }));
+  const xAxisPadding = 14;
+  const yAxisPadding = 28;
+  const innerW = frameRect.width - yAxisPadding;
+  const innerH = frameRect.height - xAxisPadding;
+  const xScale = scaleLinear().domain([0, 42]).range([0, innerW]);
+  const yScale = scaleLinear().domain([0, 4.2]).range([innerH, 0]);
+  const xAxis = axisBottom(xScale).ticks(5).tickSizeInner(-innerH);
+  const yAxis = axisRight(yScale).ticks(4).tickSizeInner(-innerW);
+  const xAxisG = overlay.append('g').attr('transform', `translate(0, ${innerH})`).call(xAxis);
+  const yAxisG = overlay.append('g').attr('transform', `translate(${innerW}, 0)`).call(yAxis);
+  overlay.selectAll('.tick line').attr('stroke', 'rgba(120, 160, 220, 0.18)');
+  overlay.selectAll('path.domain').attr('stroke', 'rgba(120, 160, 220, 0.35)');
+  overlay.selectAll('.tick text').attr('fill', 'rgba(180, 200, 230, 0.7)').style('font-size', '9px');
+
+  const numPoints = 40000;
+  const data = {
+    x: new Float32Array(numPoints),
+    y: new Float32Array(numPoints),
+    z: new Float32Array(numPoints),
+  };
+  for (let i = 0; i < numPoints; i++) {
+    data.x[i] = rng() * 42;
+    data.y[i] = rng() * 4.2;
+    data.z[i] = Math.round(rng() * 9) % COLORS_AXES.length;
+  }
+  sp.set({ colorBy: 'category', pointColor: COLORS_AXES });
   sp.draw(data);
-  sp.set({
-    pointConnectionColor: '#34bbff',
-    pointConnectionColorActive: '#ffcc66',
-    pointConnectionWidth: 0.5,
-    pointConnectionWidthActive: 1.5,
-    pointConnectionsOpacity: 0.4,
-    pointConnectionsOpacityActive: 0.8,
+
+  sp.subscribe('view', (event) => {
+    if (event && event.xScale) xAxisG.call(xAxis.scale(event.xScale));
+    if (event && event.yScale) yAxisG.call(yAxis.scale(event.yScale));
   });
   return sp;
 }
 
-async function initOpacity() {
-  const sp = setupCanvas('#canvas-opacity');
-  const data = points(60000, () => ({ x: -1 + rng() * 2, y: -1 + rng() * 2 }));
+async function initLabels() {
+  await cardReady('[data-demo-card="labels"]');
+  const sp = setupCanvas('#canvas-labels', { opacity: 1.0 });
+  const numPoints = 10000;
+  const data = new Array(numPoints);
+  for (let i = 0; i < numPoints; i++) {
+    data[i] = [
+      -1 + rng() * 2,
+      -1 + rng() * 2,
+      Math.round(rng() * 9),
+      rng(),
+    ];
+  }
+  data.label = data.map((_, i) => `P${i + 1}`);
+  sp.set({
+    showLabelsOnHover: true,
+    pointSizeSelected: 4,
+  });
   sp.draw(data);
-  sp.set({ opacityBy: 'density' });
+  return sp;
+}
+
+async function initConnections() {
+  await cardReady('[data-demo-card="connect"]');
+  const sp = setupCanvas('#canvas-connect', {
+    opacity: 0.33,
+    pointConnectionSize: 2,
+    pointConnectionColor: [1, 1, 1, 0.18],
+    pointConnectionColorActive: [0, 0.55, 1, 1],
+    pointConnectionWidth: 0.6,
+    pointConnectionOpacity: 0.6,
+  });
+  const numPoints = 9000;
+  const numPerGroup = Math.round(numPoints / 3);
+  const numPerStep = Math.round(numPerGroup / 5);
+  const data = new Array(numPoints);
+  let i = 0;
+  for (let g = 0; g < 3; g++) {
+    for (let s = 0; s < 5; s++) {
+      const cx = -1 + g * 1.0 + rng() * 0.4;
+      const cy = -1 + s * 0.5 + rng() * 0.3;
+      for (let p = 0; p < numPerStep; p++) {
+        const a = (p / numPerStep) * Math.PI * 2;
+        const r = 0.05 + rng() * 0.15;
+        data[i++] = [
+          cx + Math.cos(a) * r,
+          cy + Math.sin(a) * r,
+          g,
+          rng(),
+        ];
+      }
+    }
+  }
+  sp.set({
+    colorBy: 'category',
+    pointColor: COLORS_AXES,
+    pointConnectionColorBy: 'category',
+  });
+  sp.draw(data);
+  return sp;
+}
+
+async function initOpacity() {
+  await cardReady('[data-demo-card="opacity"]');
+  const sp = setupCanvas('#canvas-opacity', { opacity: 1.0, opacityBy: 'density' });
+  const numPoints = 100000;
+  const data = new Array(numPoints);
+  for (let i = 0; i < numPoints; i++) {
+    data[i] = [rng() * 2 - 1, rng() * 2 - 1];
+  }
+  sp.draw(data);
   return sp;
 }
 
@@ -139,7 +211,15 @@ const LANG_COLORS = {
 const COLOR_DEFAULT = '#6e7681';
 
 async function initGitHub() {
-  const sp = setupCanvas('#canvas-github');
+  await cardReady('[data-demo-card="github"]');
+  const sp = setupCanvas('#canvas-github', {
+    pointSize: 3,
+    pointColorHover: [0xff, 0xff, 0xff],
+    pointSizeSelected: 4,
+    opacity: 0.8,
+    xScale: scaleLinear().domain([5, 6]).range([0, 1]),
+    yScale: scaleLinear().domain([3, 6]).range([0, 1]),
+  });
   const status = document.querySelector('#github-status');
   try {
     const resp = await fetch('./github-130k/data/github-repos.json');
@@ -151,30 +231,25 @@ async function initGitHub() {
       return {
         x: Math.log10(Math.max(r.x, 1)),
         y: Math.log10(Math.max(r.y, 1)),
-        color: [parseInt(colorHex.slice(1), 16)],
         label: r.full_name,
       };
     });
-    sp.set({
-      pointSize: 2,
-      pointColor: (i) => pointsData[i].color,
-      pointColorHover: [0xff, 0xff, 0xff],
-      pointSizeSelected: 4,
-      opacity: 0.7,
-    });
+    const langColors = repos.map((r) => parseInt((LANG_COLORS[r.lang] || COLOR_DEFAULT).slice(1), 16));
+    sp.set({ pointColor: langColors });
     sp.draw(pointsData);
     return sp;
   } catch (e) {
     if (status) status.textContent = '로드 실패';
     console.error('[github] failed to load', e);
-    const fallback = points(2000, () => ({ x: rng() * 6, y: rng() * 5 }));
+    const fallback = new Array(2000);
+    for (let i = 0; i < 2000; i++) fallback[i] = [rng() * 6, rng() * 5];
     sp.draw(fallback);
     return sp;
   }
 }
 
 async function main() {
-  await cardCanvasesReady();
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const sps = [];
   sps.push(await initColor());
   sps.push(await initAxes());
