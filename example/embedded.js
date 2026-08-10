@@ -19,8 +19,10 @@ canvasWrapper.style.padding = '15rem 0';
 canvasWrapper.style.height = '100vh';
 canvasWrapper.parentNode.style.overflow = 'auto';
 
-exampleEl.setAttribute('class', 'active');
-exampleEl.removeAttribute('href');
+if (exampleEl) {
+  exampleEl.setAttribute('class', 'active');
+  exampleEl.removeAttribute('href');
+}
 
 let points = [];
 let numPoints = 100000;
@@ -55,7 +57,7 @@ const scatterplot = createScatterplot({
 
 checkSupport(scatterplot);
 
-exportEl.addEventListener('click', () => saveAsPng(scatterplot));
+if (exportEl) exportEl.addEventListener('click', () => saveAsPng(scatterplot));
 
 console.log(`Scatterplot v${scatterplot.get('version')}`);
 

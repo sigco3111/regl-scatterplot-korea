@@ -19,8 +19,10 @@ const resetEl = document.querySelector('#reset');
 const exportEl = document.querySelector('#export');
 const exampleEl = document.querySelector('#example-performance-mode');
 
-exampleEl.setAttribute('class', 'active');
-exampleEl.removeAttribute('href');
+if (exampleEl) {
+  exampleEl.setAttribute('class', 'active');
+  exampleEl.removeAttribute('href');
+}
 
 let points = [];
 let numPoints = 20000000;
@@ -80,7 +82,7 @@ const scatterplot = createScatterplot({
 
 checkSupport(scatterplot);
 
-exportEl.addEventListener('click', () => saveAsPng(scatterplot));
+if (exportEl) exportEl.addEventListener('click', () => saveAsPng(scatterplot));
 
 console.log(`Scatterplot v${scatterplot.get('version')}`);
 
