@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regl 산점도 — 한국어 통합 쇼케이스</title>
+    <meta
+      name="description"
+      content="Regl 기반 WebGL 산점도 한국어 데모 6종을 한 페이지에서 탐색하세요."
+    />
+    <meta name="author" content="Fritz Lekschas (원작), sigco3111 (한국어)" />
+    <link rel="shortcut icon" type="image/png" href="./favicon.png" />
+    <style type="text/css">
+      :root {
+        color-scheme: dark;
+        --bg: #050810;
+        --bg-card: #0d1320;
+        --bg-card-soft: #131b2d;
+        --border: rgba(120, 160, 220, 0.18);
+        --border-strong: rgba(120, 200, 255, 0.45);
+        --fg: #e6edf3;
+        --fg-muted: #94a3b8;
+        --accent: #6fb2e4;
+        --accent-strong: #58a6ff;
+        --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: radial-gradient(circle at top, #0c1426 0%, var(--bg) 60%);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Noto Sans KR", "Malgun Gothic", sans-serif;
+        text-rendering: optimizeLegibility;
+        min-height: 100%;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        padding: 1.25rem clamp(1rem, 3vw, 2.5rem);
+        background: rgba(8, 14, 28, 0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem 1.5rem;
+      }
+
+      .site-header h1 {
+        margin: 0;
+        font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--fg);
+      }
+
+      .site-header h1 .accent {
+        color: var(--accent-strong);
+      }
+
+      .site-header .lead {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--fg-muted);
+        flex: 1 1 100%;
+      }
+
+      .site-header nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .site-header nav a {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.78rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--fg);
+        text-decoration: none;
+        transition: background 0.15s ease, border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .site-header nav a:hover {
+        background: rgba(88, 166, 255, 0.12);
+        border-color: var(--border-strong);
+        color: var(--accent-strong);
+      }
+
+      main {
+        flex: 1;
+        padding: clamp(1rem, 2.5vw, 2rem);
+        max-width: 1600px;
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      .intro {
+        margin: 0 0 1.5rem;
+        padding: 1rem 1.25rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        color: var(--fg-muted);
+        font-size: 0.9rem;
+        line-height: 1.6;
+      }
+
+      .intro strong {
+        color: var(--fg);
+      }
+
+      .demo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+        gap: clamp(1rem, 2vw, 1.5rem);
+      }
+
+      .demo-card {
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        transition: transform 0.18s ease, border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .demo-card:hover,
+      .demo-card:focus-within {
+        transform: translateY(-2px);
+        border-color: var(--border-strong);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+      }
+
+      .demo-card header {
+        padding: 1rem 1.25rem 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .demo-card header .meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .demo-card h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--fg);
+      }
+
+      .demo-card .subtitle {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--fg-muted);
+        line-height: 1.45;
+      }
+
+      .demo-card .badge {
+        align-self: flex-start;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(88, 166, 255, 0.16);
+        color: var(--accent-strong);
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+
+      .demo-card .frame {
+        position: relative;
+        aspect-ratio: 16 / 10;
+        background: #000;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .demo-card .frame canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .demo-card footer {
+        padding: 0.85rem 1.25rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.78rem;
+        color: var(--fg-muted);
+      }
+
+      .demo-card footer a {
+        color: var(--accent);
+        text-decoration: none;
+        border-bottom: 1px dashed transparent;
+        transition: border-color 0.15s ease;
+      }
+
+      .demo-card footer a:hover {
+        border-color: var(--accent);
+      }
+
+      .site-footer {
+        padding: 1.5rem clamp(1rem, 3vw, 2.5rem);
+        font-size: 0.78rem;
+        color: var(--fg-muted);
+        text-align: center;
+        border-top: 1px solid var(--border);
+        background: rgba(8, 14, 28, 0.7);
+      }
+
+      .site-footer a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      @media (max-width: 720px) {
+        .demo-grid {
+          grid-template-columns: 1fr;
+        }
+        .demo-card .frame {
+          aspect-ratio: 4 / 3;
+        }
+        .site-header {
+          padding: 1rem;
+        }
+        main {
+          padding: 1rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .demo-card {
+          transition: none;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/regl-scatterplot-korea/assets/showcase-DLcb_YgK.js"></script>
+    <link rel="modulepreload" crossorigin href="/regl-scatterplot-korea/assets/rolldown-runtime-CbXtAM7H.js">
+    <link rel="modulepreload" crossorigin href="/regl-scatterplot-korea/assets/vendor-Dl-q-MPm.js">
+    <link rel="modulepreload" crossorigin href="/regl-scatterplot-korea/assets/src-CrqSMTeB.js">
+    <link rel="modulepreload" crossorigin href="/regl-scatterplot-korea/assets/d3-DBDaeblq.js">
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>
+        Regl 산점도 <span class="accent">한국어 통합 쇼케이스</span>
+      </h1>
+      <p class="lead">
+        6개의 라이브 데모를 한 페이지에서 비교해 보세요 — 각 카드에는 동일한
+        WebGL 산점도 인스턴스가 데모별 설정으로 직접 렌더됩니다.
+      </p>
+      <nav aria-label="데모 바로가기">
+        <a href="#demo-color">색상 인코딩</a>
+        <a href="#demo-axes">축 표시</a>
+        <a href="#demo-labels">텍스트 라벨</a>
+        <a href="#demo-connect">점 연결선</a>
+        <a href="#demo-opacity">동적 투명도</a>
+        <a href="#demo-github">GitHub 데이터</a>
+      </nav>
+    </header>
+
+    <main>
+      <p class="intro">
+        아래 6개 카드는 각각 독립된 <strong>WebGL 산점도 데모</strong>입니다.
+        색상 인코딩, 축, 텍스트 라벨, 점 연결선, 동적 투명도, 그리고 1,000개
+        GitHub 공개 저장소 데이터를 인터랙티브하게 탐색할 수 있습니다.
+      </p>
+
+      <section class="demo-grid" aria-label="데모 카드 목록">
+        <article
+          class="demo-card"
+          id="demo-color"
+          data-demo-card="color"
+          data-demo-title="색상 인코딩"
+        >
+          <header>
+            <div class="meta">
+              <h2>색상 인코딩</h2>
+              <p class="subtitle">범주형/연속형 색상 팔레트와 값 매핑</p>
+            </div>
+            <span class="badge">기본</span>
+          </header>
+          <div class="frame">
+            <canvas id="canvas-color" aria-label="색상 인코딩 산점도"></canvas>
+          </div>
+          <footer>
+            <span>8만 점 · 2개 카테고리</span>
+            <a href="./index.html" target="_blank" rel="noopener">전체 화면 →</a>
+          </footer>
+        </article>
+
+        <article
+          class="demo-card"
+          id="demo-axes"
+          data-demo-card="axes"
+          data-demo-title="축 표시"
+        >
+          <header>
+            <div class="meta">
+              <h2>축 표시</h2>
+              <p class="subtitle">xScale/yScale 동기화 산점도</p>
+            </div>
+            <span class="badge">좌표계</span>
+          </header>
+          <div class="frame">
+            <canvas id="canvas-axes" aria-label="축 표시 산점도"></canvas>
+          </div>
+          <footer>
+            <span>4만 점 · 도메인 [-1, 1]</span>
+            <a href="./axes.html" target="_blank" rel="noopener">전체 화면 →</a>
+          </footer>
+        </article>
+
+        <article
+          class="demo-card"
+          id="demo-labels"
+          data-demo-card="labels"
+          data-demo-title="텍스트 라벨"
+        >
+          <header>
+            <div class="meta">
+              <h2>텍스트 라벨</h2>
+              <p class="subtitle">호버 시 점 위에 라벨 표시</p>
+            </div>
+            <span class="badge">주석</span>
+          </header>
+          <div class="frame">
+            <canvas id="canvas-labels" aria-label="텍스트 라벨 산점도"></canvas>
+          </div>
+          <footer>
+            <span>120 점 · 라벨 가시성</span>
+            <a href="./text-labels.html" target="_blank" rel="noopener">전체 화면 →</a>
+          </footer>
+        </article>
+
+        <article
+          class="demo-card"
+          id="demo-connect"
+          data-demo-card="connect"
+          data-demo-title="점 연결선"
+        >
+          <header>
+            <div class="meta">
+              <h2>점 연결선</h2>
+              <p class="subtitle">인접한 점을 잇는 연결선 시각화</p>
+            </div>
+            <span class="badge">관계</span>
+          </header>
+          <div class="frame">
+            <canvas id="canvas-connect" aria-label="점 연결선 산점도"></canvas>
+          </div>
+          <footer>
+            <span>1.2만 점 · 연결선 강조</span>
+            <a href="./connected-points.html" target="_blank" rel="noopener">전체 화면 →</a>
+          </footer>
+        </article>
+
+        <article
+          class="demo-card"
+          id="demo-opacity"
+          data-demo-card="opacity"
+          data-demo-title="동적 투명도"
+        >
+          <header>
+            <div class="meta">
+              <h2>동적 투명도</h2>
+              <p class="subtitle">밀도에 따라 점 투명도 자동 조절</p>
+            </div>
+            <span class="badge">성능</span>
+          </header>
+          <div class="frame">
+            <canvas id="canvas-opacity" aria-label="동적 투명도 산점도"></canvas>
+          </div>
+          <footer>
+            <span>6만 점 · opacityBy='density'</span>
+            <a href="./dynamic-opacity.html" target="_blank" rel="noopener">전체 화면 →</a>
+          </footer>
+        </article>
+
+        <article
+          class="demo-card"
+          id="demo-github"
+          data-demo-card="github"
+          data-demo-title="GitHub 데이터"
+        >
+          <header>
+            <div class="meta">
+              <h2>GitHub 저장소 데이터</h2>
+              <p class="subtitle">
+                1,000+ 공개 저장소 · log(Stars) × log(Forks)
+              </p>
+            </div>
+            <span class="badge">데이터</span>
+          </header>
+          <div class="frame">
+            <canvas id="canvas-github" aria-label="GitHub 데이터 산점도"></canvas>
+          </div>
+          <footer>
+            <span id="github-status" class="meta">로딩 중…</span>
+            <a href="./github-1000/index.html" target="_blank" rel="noopener">전체 화면 →</a>
+          </footer>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      원본:
+      <a
+        href="https://github.com/flekschas/regl-scatterplot"
+        target="_blank"
+        rel="noopener"
+        >flekschas/regl-scatterplot</a
+      >
+      · 한국어 후처리 및 통합 쇼케이스: sigco3111
+    </footer>
+
+</body>
+</html>
