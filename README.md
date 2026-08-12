@@ -12,7 +12,7 @@
 
 | 데모 | URL | 비고 |
 |---|---|---|
-| **통합 쇼케이스** | https://regl-scatterplot.vercel.app/ | 6개 데모(색상 인코딩, 축, 텍스트 라벨, 점 연결선, 동적 투명도, GitHub 데이터)를 한 페이지에 그리드 배치. 각 카드의 "전체 화면 →" 링크로 standalone 페이지를 열 수 있음 |
+| **통합 쇼케이스** | https://sigco3111.github.io/regl-scatterplot-korea/ | 6개 데모(색상 인코딩, 축, 텍스트 라벨, 점 연결선, 동적 투명도, GitHub 데이터)를 한 페이지에 그리드 배치. 각 카드의 "전체 화면 →" 링크로 standalone 페이지를 열 수 있음 |
 
 ## 원본 대비 변경 사항
 
@@ -162,8 +162,8 @@ GitHub 검색 API의 검색당 상한이 1,000개라서 단일 쿼리로는 더 
 
 ## GitHub 데이터 데모 URL
 
-- 운영: <https://regl-scatterplot.vercel.app/github-1000/>
-- 구 URL 호환: <https://regl-scatterplot.vercel.app/github-130k/> → 308 → 신규 URL (Vercel rewrite)
+- 운영: <https://sigco3111.github.io/regl-scatterplot-korea/github-1000/>
+- 구 URL 호환: <https://sigco3111.github.io/regl-scatterplot-korea/github-130k/> → 308 → 신규 URL (Vercel rewrite)
 
 ## 원격 구성
 
