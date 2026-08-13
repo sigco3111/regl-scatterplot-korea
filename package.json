@@ -87,7 +87,7 @@
     "npm": ">=7.0.0",
     "node": ">=20.0.0"
   },
-  "homepage": "https://regl-scatterplot.vercel.app/",
+  "homepage": "https://sigco3111.github.io/regl-scatterplot-korea/",
   "repository": {
     "type": "git",
     "url": "https://github.com/sigco3111/regl-scatterplot-korea.git"

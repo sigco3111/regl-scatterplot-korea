@@ -12,7 +12,7 @@
 
 | 데모 | URL | 비고 |
 |---|---|---|
-| **통합 쇼케이스** | https://sigco3111.github.io/regl-scatterplot-korea/ | 6개 데모(색상 인코딩, 축, 텍스트 라벨, 점 연결선, 동적 투명도, GitHub 데이터)를 한 페이지에 그리드 배치. 각 카드의 "전체 화면 →" 링크로 standalone 페이지를 열 수 있음 |
+| **통합 쇼케이스** | <https://sigco3111.github.io/regl-scatterplot-korea/> — 라이브 데모 | 6개 데모(색상 인코딩, 축, 텍스트 라벨, 점 연결선, 동적 투명도, GitHub 데이터)를 한 페이지에 그리드 배치. 각 카드의 "전체 화면 →" 링크로 standalone 페이지를 열 수 있음 |
 
 ## 원본 대비 변경 사항
 
@@ -36,7 +36,7 @@
   - `version`은 JS 속성 키에서는 건드리지 않고 `label:\`version\`` 정규식 컨텍스트에서만 `버전`으로 치환
   - `docs/index.html`을 redirect 페이지로 덮어쓰지 않음 — `index` 청크가 만든 standalone 색상 데모를 보존
 - `scripts/sync-github-1000.mjs`
-  - 개발 모드에서 `examples/github-1000/`를 `public/github-1000/`로 복사 (Vercel 빌드는 `docs/github-1000/`)
+  - 개발 모드에서 `examples/github-1000/`를 `public/github-1000/`로 복사 (GitHub Pages 빌드는 `docs/github-1000/`)
 - `example/menu-ko.js`
   - 원본 메뉴 소스를 바탕으로 만든 한국어 참고 구현
 - `examples/github-1000/`
@@ -52,6 +52,7 @@
 - `vercel.json`
   - 전체 라이브러리 빌드 → 한국어 후처리 → GitHub 데이터 데모 복사를 하나의 배포 명령으로 실행
   - `rewrites` 규칙으로 구 URL `/github-130k` → 신규 `/github-1000` 308 리다이렉트 (하위 경로도 모두 매칭)
+  - 📦 호스팅 메모: `vercel.json`은 Pages 이관 이후에도 빌드/rewrites 단서로 보존되며 무해합니다. 공식 라이브 데모 호스팅은 GitHub Pages(`/regl-scatterplot-korea/`)입니다.
 
 ## 저장소 구조
 
@@ -71,7 +72,7 @@ regl-scatterplot-korea/
 ├── tests/                       # 원본 테스트
 ├── qa/                          # Playwright 회귀 인프라 + 증거 (evidence/는 .gitignore)
 ├── README.upstream.md           # 원본 영문 README 보존본
-└── vercel.json                  # Vercel 통합 빌드 설정
+├── vercel.json                  # 통합 빌드/rewrites 단서 (Pages 이관 이후 무해)
 ```
 
 ## 쇼케이스 검증
@@ -114,7 +115,7 @@ npm run build \
   && cp data/github-repos.json docs/github-1000/data/
 ```
 
-`vercel.json`도 같은 순서를 사용합니다. `docs/`는 생성물이라 Git에서 추적하지 않습니다.
+`docs/`는 생성물이라 Git에서 추적하지 않습니다. GitHub Pages 정적 호스팅은 이 빌드 결과물을 그대로 사용합니다.
 
 ## GitHub 데이터
 
@@ -163,7 +164,7 @@ GitHub 검색 API의 검색당 상한이 1,000개라서 단일 쿼리로는 더 
 ## GitHub 데이터 데모 URL
 
 - 운영: <https://sigco3111.github.io/regl-scatterplot-korea/github-1000/>
-- 구 URL 호환: <https://sigco3111.github.io/regl-scatterplot-korea/github-130k/> → 308 → 신규 URL (Vercel rewrite)
+- 구 URL 호환: `vercel.json`의 `rewrites` 규칙 단서 (Pages 자체에는 동일 rewrite가 없어 직접 `/github-1000/`로 이동)
 
 ## 원격 구성
 

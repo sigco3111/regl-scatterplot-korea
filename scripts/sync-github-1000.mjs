@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Dev-only sync for the GitHub 1000 demo. Vite serves `public/` statically, so
 // we copy the static demo + dataset into `public/github-1000/` so the showcase
-// iframe can load it in dev mode. The Vercel build path copies the same
+// iframe can load it in dev mode. The Pages build path copies the same
 // assets into `docs/github-1000/`.
 import { cpSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
