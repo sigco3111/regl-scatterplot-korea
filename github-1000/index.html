@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub 인터랙티브 산점도 (regl-scatterplot 한국어 데모)</title>
+  <style>
+    :root { --bg: #0d1117; --fg: #e6edf3; --accent: #58a6ff; --muted: #8b949e; --border: #21262d; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); overflow: hidden; }
+    .header { position: fixed; top: 0; left: 0; right: 0; padding: 14px 20px; background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); z-index: 10; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    h1 { font-size: 17px; font-weight: 600; }
+    .subtitle { font-size: 12px; color: var(--muted); flex: 1 1 auto; min-width: 0; }
+    .stats { padding: 2px 10px; background: var(--accent); color: #fff; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .stats.compact { display: none; }
+    #plot { position: fixed; top: 70px; left: 0; right: 0; bottom: 0; }
+    #plot .axis-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+    .legend { position: fixed; bottom: 14px; left: 14px; background: rgba(13, 17, 23, 0.92); padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; max-height: 220px; overflow-y: auto; z-index: 10; min-width: 140px; }
+    .legend h3 { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; padding: 2px 4px; cursor: pointer; border-radius: 4px; user-select: none; transition: background-color 0.12s; }
+    .legend-item:hover { background-color: rgba(88, 166, 255, 0.08); }
+    .legend-item.active { background-color: rgba(88, 166, 255, 0.18); }
+    .legend-item.muted { opacity: 0.35; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-count { color: var(--muted); font-size: 11px; margin-left: auto; padding-left: 12px; }
+    .legend-clear { display: none; margin-top: 6px; padding: 4px 8px; font-size: 11px; color: var(--accent); background: none; border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; width: 100%; }
+    .legend-clear.visible { display: block; }
+    .legend-toggle { display: none; position: fixed; bottom: 14px; left: 14px; padding: 6px 12px; background: rgba(13, 17, 23, 0.92); border: 1px solid var(--border); border-radius: 8px; color: var(--fg); font-size: 12px; cursor: pointer; z-index: 11; }
+    .legend-toggle.collapsed { display: block; }
+    .legend.collapsed { display: none; }
+    .tooltip { position: fixed; padding: 8px 12px; background: rgba(13, 17, 23, 0.95); border: 1px solid var(--accent); border-radius: 6px; font-size: 12px; pointer-events: none; z-index: 20; max-width: 320px; display: none; }
+    .tooltip-name { color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+    .tooltip-row { color: var(--muted); }
+    .tooltip-row span { color: var(--fg); }
+    .empty-state { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 32px; border: 1px solid var(--border); border-radius: 12px; background: rgba(13, 17, 23, 0.9); z-index: 5; }
+    .empty-state h2 { font-size: 16px; margin-bottom: 8px; color: var(--muted); }
+    .empty-state p { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .retry-btn { padding: 6px 14px; background: var(--accent); color: #fff; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .retry-btn:hover { filter: brightness(1.1); }
+    @media (max-width: 640px) {
+      .header { padding: 10px 14px; }
+      h1 { font-size: 14px; }
+      .subtitle { display: none; }
+      .stats { font-size: 11px; padding: 2px 8px; }
+      .legend { left: 10px; right: 10px; bottom: 10px; max-height: 50vh; }
+      #plot { top: 60px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🐙 GitHub 저장소 인터랙티브 산점도</h1>
+    <p class="subtitle">X축 = ⭐ Stars · Y축 = 🍴 Forks · 색상 = 언어 · 드래그/줌/라쏘 선택 · 클릭 시 GitHub으로 이동</p>
+    <span id="stats" class="stats">로딩 중...</span>
+  </div>
+  <div id="plot"></div>
+  <button id="legend-toggle" class="legend-toggle" data-legend-toggle aria-label="범례 토글">언어</button>
+  <div class="legend" id="legend"><h3>언어 Top 10</h3></div>
+  <div class="tooltip" id="tooltip"></div>
+  <script type="importmap">
+    {
+      "imports": {
+        "pub-sub-es": "https://cdn.jsdelivr.net/npm/pub-sub-es@3.0.0/+esm",
+        "regl": "https://cdn.jsdelivr.net/npm/regl@2.1.1/+esm"
+      }
+    }
+  </script>
+  <script type="module">
+    import createScatterplot from './regl-scatterplot.esm.js';
+
+    const LANG_COLORS = {
+      Python: '#3572A5', TypeScript: '#3178c6', JavaScript: '#f1e05a',
+      Rust: '#dea584', Go: '#00ADD8', C: '#555555', 'C++': '#f34b7d',
+      Java: '#b07219', Shell: '#89e051', HTML: '#e34c26', CSS: '#563d7c',
+      Ruby: '#701516', PHP: '#4F5D95', Swift: '#F05138', Kotlin: '#A97BFF',
+      'C#': '#178600', Lua: '#000080', Dart: '#00B4AB', Unknown: '#6e7681',
+    };
+    const COLOR_DEFAULT = '#6e7681';
+
+    const hexToRgba = (hex) => {
+      const v = parseInt(hex.slice(1), 16);
+      return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff, 255];
+    };
+
+    // Build axis overlay inside the plot container
+    const buildAxisOverlay = (container, xRange, yRange) => {
+      const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      overlay.setAttribute('class', 'axis-overlay');
+      overlay.setAttribute('width', '100%');
+      overlay.setAttribute('height', '100%');
+      const ns = 'http://www.w3.org/2000/svg';
+
+      const fmtStars = (v) => {
+        if (v >= 1e6) return (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+        if (v >= 1e3) return (v / 1e3).toFixed(v >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'K';
+        return String(Math.round(v));
+      };
+      const fmtForks = (v) => {
+        if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+        if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+        return String(Math.round(v));
+      };
+
+      const xTicks = [];
+      const yTicks = [];
+      const [xs, xe] = xRange;
+      const [ys, ye] = yRange;
+      // Pick decade ticks that lie strictly within the data range (with tiny pad)
+      const eLoX = Math.floor(Math.log10(Math.max(xs, 1)));
+      const eHiX = Math.ceil(Math.log10(Math.max(xe, 1)));
+      const eLoY = Math.floor(Math.log10(Math.max(ys, 1)));
+      const eHiY = Math.ceil(Math.log10(Math.max(ye, 1)));
+      for (let e = eLoX; e <= eHiX; e++) {
+        const v = Math.pow(10, e);
+        // Only include if v is in [xs*0.99, xe*1.01] - the data range with a 1% pad
+        if (v >= xs * 0.99 && v <= xe * 1.01) xTicks.push(v);
+      }
+      for (let e = eLoY; e <= eHiY; e++) {
+        const v = Math.pow(10, e);
+        if (v >= ys * 0.99 && v <= ye * 1.01) yTicks.push(v);
+      }
+      // If no decade tick fits, fall back to data min and max
+      if (xTicks.length < 2) {
+        xTicks.length = 0;
+        xTicks.push(xs, xe);
+      }
+      if (yTicks.length < 2) {
+        yTicks.length = 0;
+        yTicks.push(ys, ye);
+      }
+
+      const W = () => container.clientWidth || 1000;
+      const H = () => container.clientHeight || 600;
+      const PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
+      const innerW = () => W() - PAD_L - PAD_R;
+      const innerH = () => H() - PAD_T - PAD_B;
+
+      // log bounds for the axis line (xRange / yRange are linear; convert to log)
+      const xsLog = Math.log10(Math.max(xs, 1));
+      const xeLog = Math.log10(Math.max(xe, 1));
+      const ysLog = Math.log10(Math.max(ys, 1));
+      const yeLog = Math.log10(Math.max(ye, 1));
+
+      const xToPx = (v) => {
+        const lx = Math.log10(Math.max(v, 1));
+        return PAD_L + ((lx - xsLog) / (xeLog - xsLog)) * innerW();
+      };
+      const yToPx = (v) => {
+        const ly = Math.log10(Math.max(v, 1));
+        return PAD_T + (1 - (ly - ysLog) / (yeLog - ysLog)) * innerH();
+      };
+
+      const axis = document.createElementNS(ns, 'g');
+      axis.setAttribute('class', 'axes');
+
+      // X axis (bottom)
+      const xAxisLine = document.createElementNS(ns, 'line');
+      xAxisLine.setAttribute('class', 'axis-line');
+      xAxisLine.setAttribute('x1', PAD_L); xAxisLine.setAttribute('x2', W() - PAD_R);
+      xAxisLine.setAttribute('y1', H() - PAD_B); xAxisLine.setAttribute('y2', H() - PAD_B);
+      xAxisLine.setAttribute('stroke', 'rgba(180, 200, 230, 0.35)');
+      axis.appendChild(xAxisLine);
+      // X ticks
+      for (const v of xTicks) {
+        const x = xToPx(v);
+        const t = document.createElementNS(ns, 'line');
+        t.setAttribute('class', 'axis-tick axis-tick-x');
+        t.setAttribute('x1', x); t.setAttribute('x2', x);
+        t.setAttribute('y1', H() - PAD_B); t.setAttribute('y2', H() - PAD_B + 4);
+        t.setAttribute('stroke', 'rgba(180, 200, 230, 0.5)');
+        axis.appendChild(t);
+        const lbl = document.createElementNS(ns, 'text');
+        lbl.setAttribute('class', 'axis-label axis-x');
+        lbl.setAttribute('x', x);
+        lbl.setAttribute('y', H() - PAD_B + 16);
+        lbl.setAttribute('text-anchor', 'middle');
+        lbl.setAttribute('fill', 'rgba(180, 200, 230, 0.75)');
+        lbl.style.fontSize = '10px';
+        lbl.textContent = fmtStars(v);
+        axis.appendChild(lbl);
+      }
+      // X axis title
+      const xTitle = document.createElementNS(ns, 'text');
+      xTitle.setAttribute('class', 'axis-title axis-title-x');
+      xTitle.setAttribute('x', PAD_L + innerW() / 2);
+      xTitle.setAttribute('y', H() - 4);
+      xTitle.setAttribute('text-anchor', 'middle');
+      xTitle.setAttribute('fill', 'rgba(180, 200, 230, 0.9)');
+      xTitle.style.fontSize = '11px';
+      xTitle.style.fontWeight = '600';
+      xTitle.textContent = 'log₁₀(Stars)';
+      axis.appendChild(xTitle);
+
+      // Y axis (left)
+      const yAxisLine = document.createElementNS(ns, 'line');
+      yAxisLine.setAttribute('class', 'axis-line');
+      yAxisLine.setAttribute('x1', PAD_L); yAxisLine.setAttribute('x2', PAD_L);
+      yAxisLine.setAttribute('y1', PAD_T); yAxisLine.setAttribute('y2', H() - PAD_B);
+      yAxisLine.setAttribute('stroke', 'rgba(180, 200, 230, 0.35)');
+      axis.appendChild(yAxisLine);
+      for (const v of yTicks) {
+        const y = yToPx(v);
+        const t = document.createElementNS(ns, 'line');
+        t.setAttribute('class', 'axis-tick axis-tick-y');
+        t.setAttribute('x1', PAD_L - 4); t.setAttribute('x2', PAD_L);
+        t.setAttribute('y1', y); t.setAttribute('y2', y);
+        t.setAttribute('stroke', 'rgba(180, 200, 230, 0.5)');
+        axis.appendChild(t);
+        const lbl = document.createElementNS(ns, 'text');
+        lbl.setAttribute('class', 'axis-label axis-y');
+        lbl.setAttribute('x', PAD_L - 6);
+        lbl.setAttribute('y', y + 3);
+        lbl.setAttribute('text-anchor', 'end');
+        lbl.setAttribute('fill', 'rgba(180, 200, 230, 0.75)');
+        lbl.style.fontSize = '10px';
+        lbl.textContent = fmtForks(v);
+        axis.appendChild(lbl);
+      }
+      const yTitle = document.createElementNS(ns, 'text');
+      yTitle.setAttribute('class', 'axis-title axis-title-y');
+      yTitle.setAttribute('x', 8);
+      yTitle.setAttribute('y', PAD_T + innerH() / 2);
+      yTitle.setAttribute('text-anchor', 'middle');
+      yTitle.setAttribute('fill', 'rgba(180, 200, 230, 0.9)');
+      yTitle.style.fontSize = '11px';
+      yTitle.style.fontWeight = '600';
+      yTitle.textContent = 'log₁₀(Forks)';
+      // Rotate 90 degrees
+      yTitle.setAttribute('transform', `rotate(-90 8 ${PAD_T + innerH() / 2})`);
+      axis.appendChild(yTitle);
+
+      overlay.appendChild(axis);
+      return overlay;
+    };
+
+    // Test hook: exposes repos/points/scatter for E2E test (no PII)
+    const g130k = { repos: [], points: [], scatter: null, baseColors: [] };
+
+    async function main() {
+      // Remove any previous empty-state and previous scatter/axis
+      document.querySelectorAll('.empty-state, .axis-overlay').forEach((el) => el.remove());
+      const oldCanvas = document.querySelector('#plot canvas');
+      if (oldCanvas) oldCanvas.remove();
+
+      const statsEl = document.getElementById('stats');
+      const legendEl = document.getElementById('legend');
+      const tooltip = document.getElementById('tooltip');
+      statsEl.textContent = '로딩 중…';
+      legendEl.innerHTML = '<h3>언어 Top 10</h3>';
+
+      let repos = [];
+      try {
+        const resp = await fetch('./data/github-repos.json');
+        if (resp.ok) {
+          const payload = await resp.json();
+          repos = payload.repos || [];
+        }
+      } catch (_) { /* network error → empty state */ }
+
+      if (repos.length === 0) {
+        statsEl.textContent = '0개';
+        showEmptyState('데이터 없음', 'github-repos.json을 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.', main);
+        return;
+      }
+
+      statsEl.textContent = `${repos.length.toLocaleString()}개`;
+
+      const container = document.getElementById('plot');
+      const langKeys = Object.keys(LANG_COLORS);
+      const rawX = repos.map((r) => Math.log10(Math.max(r.x, 1)));
+      const rawY = repos.map((r) => Math.log10(Math.max(r.y, 1)));
+      const xMin = Math.min(...rawX);
+      const xMax = Math.max(...rawX);
+      const yMin = Math.min(...rawY);
+      const yMax = Math.max(...rawY);
+      const xPad = (xMax - xMin) * 0.05 || 0.1;
+      const yPad = (yMax - yMin) * 0.05 || 0.1;
+      const points = repos.map((r, i) => [
+        ((rawX[i] - (xMin - xPad)) / (xMax + xPad - (xMin - xPad))) * 2 - 1,
+        ((rawY[i] - (yMin - yPad)) / (yMax + yPad - (yMin - yPad))) * 2 - 1,
+        langKeys.indexOf(r.lang) === -1 ? 0 : langKeys.indexOf(r.lang),
+      ]);
+      const baseColors = repos.map((r) => {
+        const hex = LANG_COLORS[r.lang] || COLOR_DEFAULT;
+        return hexToRgba(hex);
+      });
+
+      const scatter = createScatterplot({
+        width: container.clientWidth,
+        height: container.clientHeight,
+        pointSize: 3,
+        pointColorHover: [0xff, 0xff, 0xff],
+        pointSizeSelected: 5,
+        targetFps: 30,
+      });
+
+      container.appendChild(scatter.get('canvas'));
+      scatter.set({ pointColor: baseColors, colorBy: 'category' });
+      scatter.draw(points);
+
+      // Build axis overlay
+      const xDataRange = [Math.pow(10, xMin - xPad), Math.pow(10, xMax + xPad)];
+      const yDataRange = [Math.pow(10, yMin - yPad), Math.pow(10, yMax + yPad)];
+      const axisOverlay = buildAxisOverlay(container, xDataRange, yDataRange);
+      container.appendChild(axisOverlay);
+
+      // Expose test hook
+      g130k.repos = repos;
+      g130k.points = points;
+      g130k.scatter = scatter;
+      g130k.baseColors = baseColors;
+      window.__g130k = g130k;
+
+      window.addEventListener('resize', () => {
+        scatter.set({ width: container.clientWidth, height: container.clientHeight });
+        // Re-layout axes on resize
+        const old = container.querySelector('.axis-overlay');
+        if (old) old.remove();
+        const next = buildAxisOverlay(container, xDataRange, yDataRange);
+        container.appendChild(next);
+      });
+
+      // ---- Legend (Top 10 languages + click-to-filter) ----
+      const langCounts = {};
+      for (const r of repos) {
+        const lang = r.lang || 'Unknown';
+        langCounts[lang] = (langCounts[lang] || 0) + 1;
+      }
+      const topLangs = Object.entries(langCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      legendEl.innerHTML = '<h3>언어 Top 10</h3>';
+      let activeFilter = null;
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'legend-clear';
+      clearBtn.textContent = '필터 해제';
+      clearBtn.setAttribute('data-retry', ''); // not a retry, but re-uses selector
+      legendEl.appendChild(clearBtn);
+      for (const [lang, count] of topLangs) {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.setAttribute('data-lang', lang);
+        const color = LANG_COLORS[lang] || COLOR_DEFAULT;
+        item.innerHTML = `<span class="legend-dot" style="background:${color}"></span><span class="legend-name">${lang}</span><span class="legend-count">${count}</span>`;
+        item.addEventListener('click', () => {
+          if (activeFilter === lang) {
+            activeFilter = null;
+            item.classList.remove('active');
+            for (const it of legendEl.querySelectorAll('.legend-item')) it.classList.remove('muted');
+            scatter.set({ pointColor: baseColors });
+            clearBtn.classList.remove('visible');
+          } else {
+            activeFilter = lang;
+            for (const it of legendEl.querySelectorAll('.legend-item')) {
+              if (it.getAttribute('data-lang') === lang) it.classList.add('active');
+              else it.classList.add('muted');
+            }
+            const dim = [40, 40, 50, 25];
+            const filtered = repos.map((r) =>
+              r.lang === lang ? baseColors[repos.indexOf(r)] : dim
+            );
+            scatter.set({ pointColor: filtered });
+            clearBtn.classList.add('visible');
+          }
+        });
+        legendEl.appendChild(item);
+      }
+      clearBtn.addEventListener('click', () => {
+        activeFilter = null;
+        for (const it of legendEl.querySelectorAll('.legend-item')) {
+          it.classList.remove('active');
+          it.classList.remove('muted');
+        }
+        scatter.set({ pointColor: baseColors });
+        clearBtn.classList.remove('visible');
+      });
+
+      // ---- Mobile legend collapse ----
+      const toggle = document.getElementById('legend-toggle');
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          legendEl.classList.toggle('collapsed');
+          toggle.classList.toggle('collapsed');
+        });
+        // Auto-show legend on wide screens, hide on narrow
+        const mql = window.matchMedia('(max-width: 640px)');
+        const syncLegend = (e) => {
+          if (e.matches) {
+            legendEl.classList.add('collapsed');
+            toggle.classList.add('collapsed');
+          } else {
+            legendEl.classList.remove('collapsed');
+            toggle.classList.remove('collapsed');
+          }
+        };
+        syncLegend(mql);
+        mql.addEventListener('change', syncLegend);
+      }
+
+      // ---- Tooltip on hover ----
+      scatter.subscribe('pointover', (pointIndex) => {
+        const repo = repos[pointIndex];
+        if (!repo) return;
+        tooltip.style.display = 'block';
+        tooltip.innerHTML = `
+          <div class="tooltip-name">${repo.full_name}</div>
+          <div class="tooltip-row">⭐ Stars: <span>${repo.x.toLocaleString()}</span></div>
+          <div class="tooltip-row">🍴 Forks: <span>${repo.y.toLocaleString()}</span></div>
+          <div class="tooltip-row">📦 Lang: <span>${repo.lang || 'Unknown'}</span></div>
+          ${repo.description ? `<div class="tooltip-row" style="margin-top:4px">${repo.description.slice(0, 80)}</div>` : ''}
+        `;
+      });
+      scatter.subscribe('pointout', () => { tooltip.style.display = 'none'; });
+      container.addEventListener('mousemove', (e) => {
+        if (tooltip.style.display === 'block') {
+          // Keep tooltip within viewport
+          const tw = tooltip.offsetWidth;
+          const th = tooltip.offsetHeight;
+          let lx = e.clientX + 12;
+          let ly = e.clientY + 12;
+          if (lx + tw > window.innerWidth - 4) lx = e.clientX - tw - 12;
+          if (ly + th > window.innerHeight - 4) ly = e.clientY - th - 12;
+          tooltip.style.left = lx + 'px';
+          tooltip.style.top = ly + 'px';
+        }
+      });
+
+      // ---- Click-to-open on single-point selection ----
+      let lassoActive = false;
+      scatter.subscribe('lassoStart', () => { lassoActive = true; });
+      scatter.subscribe('lassoEnd', () => { lassoActive = false; });
+      scatter.subscribe('select', ({ points: selectedPoints }) => {
+        if (!lassoActive && selectedPoints && selectedPoints.length === 1) {
+          const idx = selectedPoints[0];
+          const repo = repos[idx];
+          if (repo) {
+            window.open(`https://github.com/${repo.full_name}`, '_blank', 'noopener,noreferrer');
+          }
+        }
+        // Update stats for multi-select
+        const sel = selectedPoints || [];
+        statsEl.textContent = sel.length > 0
+          ? `${sel.length}개 선택 (전체 ${repos.length.toLocaleString()})`
+          : `${repos.length.toLocaleString()}개`;
+      });
+
+      console.log(`[github-1000] ${repos.length}개 로드 완료`);
+    }
+
+    function showEmptyState(title, message, retry) {
+      const el = document.createElement('div');
+      el.className = 'empty-state';
+      el.setAttribute('data-empty-state', '');
+      el.innerHTML = `
+        <h2>${title}</h2>
+        <p>${message}</p>
+        <button class="retry-btn" data-retry>다시 시도</button>
+      `;
+      document.body.appendChild(el);
+      el.querySelector('.retry-btn').addEventListener('click', () => {
+        el.remove();
+        retry();
+      });
+    }
+
+    main().catch((e) => {
+      console.error('FATAL:', e);
+      const statsEl = document.getElementById('stats');
+      if (statsEl) statsEl.textContent = '로드 실패';
+      showEmptyState('로드 실패', '예기치 못한 오류가 발생했습니다. 다시 시도해 주세요.', () => main().catch(() => {}));
+    });
+  </script>
+</body>
+</html>
